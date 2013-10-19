@@ -34,7 +34,7 @@ class SOY {
 		return str_replace('\\', '/', $path);
 	}
 	
-	public function __invoke($params) {
+	public function get_conn_attr($params) {
 		list($conn_name, $attr) = explode('.', $params);
 		
 		if( isset( $this->connections[$conn_name] ) ) {
@@ -267,7 +267,7 @@ function bash($bash_string) { global $soy; return $soy->bash($bash_string); }
 function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
-function __($params)		{ global $soy; return $soy($params); }
+function __($params)		{ global $soy; return $soy->get_conn_attr($params); }
 
 
 /* Main so_file.php functions */

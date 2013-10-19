@@ -13,8 +13,6 @@ Task('deploy', function() {
 	Run('schema');
 });
 
-
-
 Task('files', function() {
 	transfer('local_folder', 'remote_folder');
 	select('remote_folder');
@@ -26,6 +24,5 @@ Task('schema', function() {
 	select('remote_database');
 	sql_query("UPDATE page SET page_name = REPLACE(page_name, 'localhost', 'production')");
 });
-
 
 Start();

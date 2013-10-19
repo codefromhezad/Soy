@@ -2,6 +2,17 @@ SOY is the contraction of Simple deplOY.
 
 This tool is meant to replace huge deployment toolsets for simpler projects (especially PHP projects)
 
+
+# This is a very early version of the code. Use it at your own risks.
+
+## A few things you want to know :
+
+* Implemented transfers :
+  * MySQL to MySQL
+  * Local files to SFTP Connexion
+* The bash($string) function executes $string on the server via SSH. Be careful. It's common sense but don't use a root account for your SSH Connexion.  
+* The sql_query($query) function queries $query on the mysql Connexion. Once again. Be careful with the queries you execute. You don't want to drop your production database.
+* The transfer() functions overwrite its destination, whatever the scheme is (MySQL, SSH, ...). As a result, IT WILL DROP AND RECREATE THE ENTIRE TARGET DATABASE. Use it as an initial deployment function only.
 ## Features
 * Deploy files over SFTP.
 * Deploy database schema

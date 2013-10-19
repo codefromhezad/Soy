@@ -8,11 +8,12 @@ include('MysqlDump.php');
 
 include('class.Soy.php');
 
-function Start() {
-	global $argv;
-	if( ! isset( $argv[1] ) || empty( $argv[1] ) ) {
-		die("Usage: php soy <task-name>");
-	}
-	
-	Run($argv[1]);
+/* Start */
+if( ! isset( $argv[1] ) || empty( $argv[1] ) ) {
+	die("Usage: php soy <task-name>");
 }
+
+include('soy.conf.php');
+include('soy.php');
+
+Run($argv[1]);

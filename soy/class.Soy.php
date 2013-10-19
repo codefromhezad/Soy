@@ -7,6 +7,9 @@ class SOY {
 		   $tasks = array();
 	
 	public $selected_connection = null;
+	public $public_variables = array();
+	
+	public $file_exclusions = array('.git', '.svn');
 	
 	public function announce($cat, $message, $padded=false) {
 		echo ($padded ? "    ":"").str_pad($message, ($padded ? -4 : 0 ) + ANNOUNCE_MESSAGE_PADDING, ".", STR_PAD_RIGHT);
@@ -34,13 +37,13 @@ class SOY {
 		return str_replace('\\', '/', $path);
 	}
 	
-	public function get_conn_attr($params) {
-		list($conn_name, $attr) = explode('.', $params);
-		
-		if( isset( $this->connections[$conn_name] ) ) {
-			return $this->connections[$conn_name]['parsed_string'][$attr];
-		}
-		return false;
+	public function set($var, $val) {
+		$this->public_variables[$var] = $val;
+		eval('global $'.$var.'; $'.$var.' = '.var_export($val, true).';');
+	}
+	
+	public function get($var) {
+		return $this->public_variables[$var];
 	}
 	
 	public function ssh_login($cname) {		
@@ -97,19 +100,24 @@ class SOY {
 		
 		$this->announce('DB', "Connect database '$cname'");
 		
-		$link = new \PDO($connection['scheme'].':host='.$connection['host'].';', 
-			$connection['user'], 
-			$connection['pass'], 
-			array(
-				\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, 
-				\PDO::ATTR_PERSISTENT => false
-			)
-		);
+		try {
+			$link = @new \PDO($connection['scheme'].':host='.$connection['host'].';', 
+				$connection['user'], 
+				$connection['pass'], 
+				array(
+					\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, 
+					\PDO::ATTR_PERSISTENT => false
+				)
+			);
+		} catch(Exception $e) {
+			$this->status('fail', $e->getMessage());
+		}
 		
-		if( $link )
+		if( $link ) {
 			$this->status('ok');
-		else
-			$this->status('fail', "Can't connect to the database '$cname'");
+		} else {
+			$this->status('fail', "Can't connect to database");
+		}
 		
 		return $link;
 	}
@@ -117,6 +125,13 @@ class SOY {
 	/* Helpers to use in tasks */
 	
 	public function transfer($conn_from, $conn_to) {
+		if( ! isset( $this->connections[$conn_from] ) ) {
+			die($conn_from.' is not a connexion');
+		}
+		if( ! isset( $this->connections[$conn_to] ) ) {
+			die($conn_to.' is not a connexion');
+		}
+		
 		$c = array(
 			$this->connections[$conn_from]['parsed_string'],
 			$this->connections[$conn_to]['parsed_string']
@@ -138,13 +153,20 @@ class SOY {
 				
 				$this->announce("SFTP",
 "Deploy $local_dir ($conn_from)
-     to $remote_dir ($conn_to)"
+    to $remote_dir ($conn_to)"
 				);
 				$this->status("");
 				
 				foreach(new RecursiveIteratorIterator($local_iterator) as $filename => $fileinfo) {
 					
 					$filename = $this->normalize_path($filename);
+					
+					foreach( $this->file_exclusions as $exclusion ) {
+						$exclusion = preg_quote($exclusion);
+						if( preg_match('`(\/'.$exclusion.'|'.$exclusion.'\/)`', $filename) ) {
+							continue 2;
+						}
+					}
 					
 					$relative_filename = str_replace($local_dir, '', $filename);
 					$remote_path = $remote_dir.$relative_filename;
@@ -160,7 +182,7 @@ class SOY {
 							 ->put($remote_path, $filename, NET_SFTP_LOCAL_FILE) ) {
 						$this->status('ok');
 					} else {
-						$this->status('fail', "An error occured while uploading this file");
+						$this->status('fail', $this->connections[$conn_to]['objects']['sftp']->getLastSFTPError());
 					}
 				}
 				
@@ -245,18 +267,24 @@ class SOY {
 	
 	public function sql_query($query) {
 		if( ! $this->selected_connection ) {
-			$this->status('fail', "No connection selected for this bash command");
+			$this->status('fail', "No connection selected for this SQL query");
 		}
 		
 		$this->announce('QUERY', "$query");
-		if( $res = $this->selected_connection['objects']['mysql']->query($query) ) {
+		try {
+			$res = $this->selected_connection['objects']['mysql']->query($query);
 			$this->status('ok');
+			if( $res ) {
+				$result = $res->fetch(PDO::FETCH_ASSOC);
+				print_r( reset($result) );
+			}
 			return $res;
-		} else {
-			$this->status('fail', mysql_error());
+		} catch( PDOException $e ) {
+			$this->status('fail', $e->getMessage());
 		}
 	}
 }
+
 
 /* SOY Instanciation */
 $soy = new SOY();
@@ -267,10 +295,8 @@ function bash($bash_string) { global $soy; return $soy->bash($bash_string); }
 function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
-function __($params)		{ global $soy; return $soy->get_conn_attr($params); }
 
-
-/* Main so_file.php functions */
+/* Main soy.php functions */
 function Task($task_name, $task_callback) {
 	global $soy;
 	$soy->tasks[$task_name] = $task_callback;
@@ -279,7 +305,15 @@ function Task($task_name, $task_callback) {
 function Run($task_name) {
 	global $soy;
 	echo "\n".'[[[ EXECUTING TASK {{ '.$task_name.' }} ]]]'."\n";
+	if( ! isset($soy->tasks[$task_name]) ) {
+		die($task_name.' is not a task');
+	}
 	$soy->tasks[$task_name]();
+}
+
+function Set($varname, $varval) {
+	global $soy;
+	$soy->set($varname, $varval);
 }
 
 function Connection($conn_name, $conn_string) {
@@ -287,6 +321,8 @@ function Connection($conn_name, $conn_string) {
 	
 	$conn = parse_url($conn_string);
 	$conn['path'] = $soy->normalize_path($conn['path']);
+	
+	Set($conn_name, $conn);
 	
 	$soy->connections[$conn_name] = array(
 		'string' => $conn_string,

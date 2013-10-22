@@ -8,6 +8,11 @@ include('MysqlDump.php');
 
 include('class.Soy.php');
 
+/* Load default tasks */
+foreach( glob(dirname(__FILE__).'/tasks/*.php') as $filename ) {
+	require_once($filename);
+}
+
 /* Start */
 if( ! isset( $argv[1] ) || empty( $argv[1] ) ) {
 	die("Usage: php soy <task-name>");

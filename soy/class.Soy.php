@@ -9,10 +9,20 @@ class SOY {
 	public $selected_connection = null;
 	public $public_variables = array();
 	
+	public $dsn_types = array(
+		'file'     => array('ssh', 'files'),
+		'database' => array('mysql')
+	);
+	
 	public $file_exclusions = array('.git', '.svn');
 	
+	public $last_announce_length = 0;
+	
 	public function announce($cat, $message, $padded=false) {
-		echo ($padded ? "    ":"").str_pad($message, ($padded ? -4 : 0 ) + ANNOUNCE_MESSAGE_PADDING, ".", STR_PAD_RIGHT);
+		$message = ($padded ? "    ":"")."  ".$message;
+		$this->last_announce_length = strlen($message);
+		
+		echo $message;
 	}
 	
 	public function status($status = null, $message = null) {
@@ -26,10 +36,11 @@ class SOY {
 				die;
 				break;
 			case "ok":
-				echo " OK\n";
+				echo " ".str_pad(" OK", (ANNOUNCE_MESSAGE_PADDING - $this->last_announce_length), ".", STR_PAD_LEFT)."\n";
 				break;
 			default:
 				echo "\n";
+				break;
 		}
 	}
 	
@@ -125,7 +136,67 @@ class SOY {
 	
 	/* Helpers to use in tasks */
 	
-	public function transfer($conn_from, $conn_to, $shared_files) {
+	public function upload_to($conn_dest) {
+		if( ! isset( $this->selected_connection ) ) {
+			die('No connexion selected'."\n");
+		}
+		if( ! isset( $this->connections[$conn_dest] ) ) {
+			die($conn_dest.' is not a connexion'."\n");
+		}
+		
+		$c = array(
+			$this->connections[$this->selected_connection]['parsed_string'],
+			$this->connections[$conn_dest]['parsed_string']
+		);
+		
+		$o = array(
+			$this->connections[$this->selected_connection]['objects'],
+			$this->connections[$conn_dest]['objects']
+		);
+		
+		// deploy folder over SFTP
+		$local_iterator = new RecursiveDirectoryIterator($c[0]['path']);
+		
+		$local_dir = $c[0]['path'];
+		$remote_dir = $c[1]['path'];
+		
+		$this->announce("SFTP",
+"Deploy $local_dir ($conn_from)
+    to $remote_dir ($conn_to)"
+				);
+		$this->status("");
+		
+		foreach(new RecursiveIteratorIterator($local_iterator) as $filename => $fileinfo) {
+			
+			$filename = $this->normalize_path($filename);
+			
+			foreach( $this->file_exclusions as $exclusion ) {
+				$exclusion = preg_quote($exclusion);
+				if( preg_match('`(\/'.$exclusion.'|'.$exclusion.'\/)`', $filename) ) {
+					continue 2;
+				}
+			}
+			
+			$relative_filename = str_replace($local_dir, '', $filename);
+			$remote_path = $remote_dir.$relative_filename;
+			
+			$remote_current_dir = dirname($remote_path);
+			
+			$this->announce(" ", $relative_filename, true);
+			
+			$this->connections[$conn_to]['objects']['ssh']
+				 ->exec('if [ ! -d "'.$remote_current_dir.'" ]; then mkdir -p "'.$remote_current_dir.'" --; fi');
+			
+			if( $this->connections[$conn_to]['objects']['sftp']
+					 ->put($remote_path, $filename, NET_SFTP_LOCAL_FILE) ) {
+				$this->status('ok');
+			} else {
+				$this->status('fail', $this->connections[$conn_to]['objects']['sftp']->getLastSFTPError());
+			}
+		}
+	}
+	
+	public function transfer($conn_from, $conn_to) {
 		if( ! isset( $this->connections[$conn_from] ) ) {
 			die($conn_from.' is not a connexion'."\n");
 		}
@@ -133,59 +204,10 @@ class SOY {
 			die($conn_to.' is not a connexion'."\n");
 		}
 		
-		$c = array(
-			$this->connections[$conn_from]['parsed_string'],
-			$this->connections[$conn_to]['parsed_string']
-		);
-		
-		$o = array(
-			$this->connections[$conn_from]['objects'],
-			$this->connections[$conn_to]['objects']
-		);
-		
 		switch( $c[0]['scheme'].' to '.$c[1]['scheme'] ) {
 			case 'file to ssh':
 				
-				// deploy folder over SFTP
-				$local_iterator = new RecursiveDirectoryIterator($c[0]['path']);
 				
-				$local_dir = $c[0]['path'];
-				$remote_dir = $c[1]['path'];
-				
-				$this->announce("SFTP",
-"Deploy $local_dir ($conn_from)
-    to $remote_dir ($conn_to)"
-				);
-				$this->status("");
-				
-				foreach(new RecursiveIteratorIterator($local_iterator) as $filename => $fileinfo) {
-					
-					$filename = $this->normalize_path($filename);
-					
-					foreach( $this->file_exclusions as $exclusion ) {
-						$exclusion = preg_quote($exclusion);
-						if( preg_match('`(\/'.$exclusion.'|'.$exclusion.'\/)`', $filename) ) {
-							continue 2;
-						}
-					}
-					
-					$relative_filename = str_replace($local_dir, '', $filename);
-					$remote_path = $remote_dir.$relative_filename;
-					
-					$remote_current_dir = dirname($remote_path);
-					
-					$this->announce(" ", $relative_filename, true);
-					
-					$this->connections[$conn_to]['objects']['ssh']
-						 ->exec('if [ ! -d "'.$remote_current_dir.'" ]; then mkdir -p "'.$remote_current_dir.'" --; fi');
-					
-					if( $this->connections[$conn_to]['objects']['sftp']
-							 ->put($remote_path, $filename, NET_SFTP_LOCAL_FILE) ) {
-						$this->status('ok');
-					} else {
-						$this->status('fail', $this->connections[$conn_to]['objects']['sftp']->getLastSFTPError());
-					}
-				}
 				
 				break;
 			case 'mysql to mysql':
@@ -245,8 +267,10 @@ class SOY {
 	}
 	
 	public function bash($bash_string, $verbose=true) {
-		if( $verbose )
+		if( $verbose ) {
 			$this->announce('BASH', $bash_string);
+			$this->status();
+		}
 		
 		if( ! $this->selected_connection ) {
 			$this->status('fail', "No connection selected for this bash command");
@@ -254,18 +278,12 @@ class SOY {
 		
 		$ret = $this->selected_connection['objects']['ssh']->exec($bash_string);
 		
-		if( $this->selected_connection['objects']['ssh']->getExitStatus() == 0 ) {
-			if( $verbose )
-				echo "\n";
-			
-			if( $ret ) {
-				if( $verbose ) {
-					$this->announce('BASH', "<< ".$ret, true);
-					$this->status('ok');
-				}
-				return $ret;
+		if( $this->selected_connection['objects']['ssh']->getExitStatus() == 0 ) {			
+			if( $verbose ) {
+				$this->announce('BASH', ">> ".($ret ? $ret : ''), true);
+				$this->status('ok');
 			}
-				
+			return $ret;
 		} else {
 			echo "\n";
 			$this->announce('error', rtrim($ret,"\n"));
@@ -305,7 +323,9 @@ function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
 function test($test_string) { $ret = bash('if [ '.$test_string.' ] ; then echo 1 ; else echo 0 ; fi', false); return intval($ret); }
-function info($info_string) { global $soy; echo $info_string."\n"; }
+function announce($cat, $message, $padded=false) { global $soy; $soy->announce($cat, $message, $padded); }
+function status($status = null, $message = null) { global $soy; $soy->status($status, $message); }
+function upload_to($dest_conn) { global $soy; $soy->upload_to($dest_conn); }
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {

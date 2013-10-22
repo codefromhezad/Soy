@@ -4,23 +4,27 @@ Task('soy:setup', function() {
 	global $remote_server;
 	select('remote_server');
 
-	info('Checking presence of required folders ...');
+	announce('soy', 'Checking presence of required folders');
+	status();
 
 	if( ! test("-e {$remote_server['path']}") ) {
 		bash("mkdir {$remote_server['path']}");
 	} else {
-		info('>> Base folder already exists.');
+		announce('bash', '>> Base folder already exists', true);
+		status('ok');
 	}
 
 	if( ! test("-e {$remote_server['path']}/release") ) {
 		bash("mkdir {$remote_server['path']}/release");
 	} else {
-		info('>> Release folder already exists.');
+		announce('bash', '>> Release folder already exists', true);
+		status('ok');
 	}
 
 	if( ! test("-e {$remote_server['path']}/shared") ) {
 		bash("mkdir {$remote_server['path']}/shared");
 	} else {
-		info('>> Shared folder already exists.');
+		announce('bash', '>> Shared folder already exists', true);
+		status('ok');
 	}
 });

@@ -33,23 +33,19 @@ php soy/soy_starter.php <task-name>
 ```php
 <?php
 
+Run('soy:setup');
+
 Task('deploy', function() {
-	Run('files');
-	Run('schema');
-});
-
-Task('files', function() {
-	global $remote_server;
+	global $release_path, $shared_path;
 	
-	transfer('local_files', 'remote_server');
-	select('remote_server');
-	bash("mv {$remote_server['path']}/test_folder/test.txt {$remote_server['path']}/test_folder/test_production.txt");
-});
+	select('local_files');
+	upload_to('remote_server');
 
-Task('schema', function() {
-	transfer('local_database', 'remote_database');
-	select('remote_database');
-	sql_query("UPDATE page SET page_name = REPLACE(page_name, 'localhost', 'production')");
+	select('remote_server');
+	bash("mv $release_path/test.txt  $release_path/test_modified.txt");
+	
+	select('local_database');
+	dump_to('remote_database');
 });
 
 ```
@@ -60,11 +56,12 @@ Task('schema', function() {
 ```php
 <?php
 
-Connection('local_database', 'mysql://username:pass@localhost/dbname');
-Connection('remote_database', 'mysql://username:pass@remotehost/dbname');
-
-Connection('local_folder', 'file:///local_folder');
-Connection('remote_folder', 'ssh://username:pass@remotehost/remote_folder');
+Lands( array(
+	'local_files'     => 'file:///path/to/files',
+	'remote_server'   => 'ssh://user:password@remote_host.com/path/to/files',
+	'local_database'  => 'mysql://user:password@localhost/dbname',
+	'remote_database' => 'mysql://user:password@remote_host.com/dbname'
+) );
 
 ```
 

@@ -274,7 +274,7 @@ class SOY {
 		try {
 			$res = $this->selected_connection['objects']['mysql']->query($query);
 			$this->status('ok');
-			if( $res ) {
+			if( $res && $res->columnCount() > 0 ) {
 				$result = $res->fetch(PDO::FETCH_ASSOC);
 				print_r( reset($result) );
 			}

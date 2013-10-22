@@ -265,8 +265,13 @@ class SOY {
 	
 	public function select($conn_name) {
 		$this->announce('SOY', "Select connection '{$conn_name}'");
+		
 		$this->selected_connection = $this->connections[$conn_name];
 		$this->selected_connection['name'] = $conn_name;
+		
+		$this->set('release_path', $this->selected_connection['parsed_string']['path'].'/release');
+		$this->set('shared_path', $this->selected_connection['parsed_string']['path'].'/shared');
+		
 		$this->status('ok');
 	}
 	

@@ -124,7 +124,7 @@ class SOY {
 	
 	/* Helpers to use in tasks */
 	
-	public function transfer($conn_from, $conn_to) {
+	public function transfer($conn_from, $conn_to, $shared_files) {
 		if( ! isset( $this->connections[$conn_from] ) ) {
 			die($conn_from.' is not a connexion');
 		}
@@ -253,10 +253,12 @@ class SOY {
 		$ret = $this->selected_connection['objects']['ssh']->exec($bash_string);
 		
 		if( $this->selected_connection['objects']['ssh']->getExitStatus() == 0 ) {
-			$this->status('ok');
+			echo "\n";
 			
 			if( $ret ) {
 				$this->announce('BASH', "<< ".$ret, true);
+				$this->status('ok');
+				return $ret;
 			}
 				
 		} else {
@@ -296,6 +298,7 @@ function bash($bash_string) { global $soy; return $soy->bash($bash_string); }
 function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
+function test($test_string) { return bash('if [ '.$test_string.' ] ; then echo 1 ; else echo 0 ; fi'); }
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {

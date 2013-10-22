@@ -6,6 +6,7 @@ class SOY {
 	public $connections = array(),
 		   $tasks = array();
 	
+	public $loadable_connexions = array();
 	public $selected_connection = null;
 	public $public_variables = array();
 	
@@ -265,14 +266,17 @@ class SOY {
 	
 	public function select($conn_name) {
 		$this->announce('SOY', "Select connection '{$conn_name}'");
+		$this->status();
+		
+		if( isset( $this->loadable_connexions[$conn_name] ) ) {
+			Connection($conn_name);
+		}
 		
 		$this->selected_connection = $this->connections[$conn_name];
 		$this->selected_connection['name'] = $conn_name;
 		
 		$this->set('release_path', $this->selected_connection['parsed_string']['path'].'/release');
 		$this->set('shared_path', $this->selected_connection['parsed_string']['path'].'/shared');
-		
-		$this->status('ok');
 	}
 	
 	public function bash($bash_string, $verbose=true) {
@@ -357,8 +361,15 @@ function Set($varname, $varval) {
 	$soy->set($varname, $varval);
 }
 
-function Connection($conn_name, $conn_string) {
+function Lands($connexions_array) {
 	global $soy;
+	$soy->loadable_connexions = $connexions_array;
+}
+
+function Connection($conn_name) {
+	global $soy;
+	
+	$conn_string = $soy->loadable_connexions[$conn_name];
 	
 	$conn = parse_url($conn_string);
 	$conn['path'] = $soy->normalize_path($conn['path']);

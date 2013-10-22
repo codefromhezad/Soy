@@ -72,3 +72,8 @@ Files starting with, or contained in a folder named as the next strings won't be
 ```
 '.git', '.svn'
 ```
+
+## Todo
+* Sudoable commands
+* Shared folder
+* Release folder (with rollbacks possibility)

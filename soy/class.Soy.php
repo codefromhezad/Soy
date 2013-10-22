@@ -223,8 +223,9 @@ class SOY {
 				
 				$o[1]['mysql']->query(
 					"SET foreign_key_checks = 0;\n".
+					"SET NAMES utf8;\n".
 					"DROP DATABASE IF EXISTS ".mysql_real_escape_string($remote_dbname).";\n".
-					"CREATE DATABASE ".mysql_real_escape_string($remote_dbname).";\n".
+					"CREATE DATABASE ".mysql_real_escape_string($remote_dbname)." DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;\n".
 					"USE ".mysql_real_escape_string($remote_dbname).";\n".
 					$local_sql_schema.
 					"SET foreign_key_checks = 1;\n"

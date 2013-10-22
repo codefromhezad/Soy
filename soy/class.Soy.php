@@ -6,7 +6,7 @@ class SOY {
 	public $connections = array(),
 		   $tasks = array();
 	
-	public $loadable_connexions = array();
+	public $loadable_connections = array();
 	public $selected_connection = null;
 	public $public_variables = array();
 	
@@ -139,10 +139,10 @@ class SOY {
 	
 	public function upload_to($conn_dest) {
 		if( ! isset( $this->selected_connection ) ) {
-			die('No connexion selected'."\n");
+			die('No connection selected'."\n");
 		}
 		if( ! isset( $this->connections[$conn_dest] ) ) {
-			die($conn_dest.' is not a connexion'."\n");
+			die($conn_dest.' is not a connection'."\n");
 		}
 		
 		$c = array(
@@ -199,10 +199,10 @@ class SOY {
 	
 	public function dump_to($conn_dest) {
 		if( ! isset( $this->selected_connection ) ) {
-			die('No connexion selected'."\n");
+			die('No connection selected'."\n");
 		}
 		if( ! isset( $this->connections[$conn_dest] ) ) {
-			die($conn_dest.' is not a connexion'."\n");
+			die($conn_dest.' is not a connection'."\n");
 		}
 		
 		$c = array(
@@ -268,7 +268,7 @@ class SOY {
 		$this->announce('SOY', "Select connection '{$conn_name}'");
 		$this->status();
 		
-		if( isset( $this->loadable_connexions[$conn_name] ) ) {
+		if( isset( $this->loadable_connections[$conn_name] ) ) {
 			Connection($conn_name);
 		}
 		
@@ -361,15 +361,15 @@ function Set($varname, $varval) {
 	$soy->set($varname, $varval);
 }
 
-function Lands($connexions_array) {
+function Lands($connections_array) {
 	global $soy;
-	$soy->loadable_connexions = $connexions_array;
+	$soy->loadable_connections = $connections_array;
 }
 
 function Connection($conn_name) {
 	global $soy;
 	
-	$conn_string = $soy->loadable_connexions[$conn_name];
+	$conn_string = $soy->loadable_connections[$conn_name];
 	
 	$conn = parse_url($conn_string);
 	$conn['path'] = $soy->normalize_path($conn['path']);

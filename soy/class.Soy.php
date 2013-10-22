@@ -145,12 +145,12 @@ class SOY {
 		}
 		
 		$c = array(
-			$this->connections[$this->selected_connection]['parsed_string'],
+			$this->selected_connection['parsed_string'],
 			$this->connections[$conn_dest]['parsed_string']
 		);
 		
 		$o = array(
-			$this->connections[$this->selected_connection]['objects'],
+			$this->selected_connection['objects'],
 			$this->connections[$conn_dest]['objects']
 		);
 		
@@ -158,12 +158,12 @@ class SOY {
 		$local_iterator = new RecursiveDirectoryIterator($c[0]['path']);
 		
 		$local_dir = $c[0]['path'];
-		$remote_dir = $c[1]['path'];
+		$remote_dir = $c[1]['path'].'/release';
 		
 		$this->announce("SFTP",
-"Deploy $local_dir ($conn_from)
-    to $remote_dir ($conn_to)"
-				);
+"Deploy $local_dir ({$this->selected_connection['name']})
+      to $remote_dir ($conn_dest)"
+		);
 		$this->status("");
 		
 		foreach(new RecursiveIteratorIterator($local_iterator) as $filename => $fileinfo) {
@@ -184,85 +184,89 @@ class SOY {
 			
 			$this->announce(" ", $relative_filename, true);
 			
-			$this->connections[$conn_to]['objects']['ssh']
+			$this->connections[$conn_dest]['objects']['ssh']
 				 ->exec('if [ ! -d "'.$remote_current_dir.'" ]; then mkdir -p "'.$remote_current_dir.'" --; fi');
 			
-			if( $this->connections[$conn_to]['objects']['sftp']
+			if( $this->connections[$conn_dest]['objects']['sftp']
 					 ->put($remote_path, $filename, NET_SFTP_LOCAL_FILE) ) {
 				$this->status('ok');
 			} else {
-				$this->status('fail', $this->connections[$conn_to]['objects']['sftp']->getLastSFTPError());
+				$this->status('fail', $this->connections[$conn_dest]['objects']['sftp']->getLastSFTPError());
 			}
 		}
 	}
 	
-	public function transfer($conn_from, $conn_to) {
-		if( ! isset( $this->connections[$conn_from] ) ) {
-			die($conn_from.' is not a connexion'."\n");
+	public function dump_to($conn_dest) {
+		if( ! isset( $this->selected_connection ) ) {
+			die('No connexion selected'."\n");
 		}
-		if( ! isset( $this->connections[$conn_to] ) ) {
-			die($conn_to.' is not a connexion'."\n");
+		if( ! isset( $this->connections[$conn_dest] ) ) {
+			die($conn_dest.' is not a connexion'."\n");
 		}
 		
-		switch( $c[0]['scheme'].' to '.$c[1]['scheme'] ) {
-			case 'file to ssh':
-				
-				
-				
-				break;
-			case 'mysql to mysql':
-				
-				/* Deploy database */
-				$connection = $c[0];
-				$dbname = ltrim($connection['path'],'/');
-				
-				$this->announce('DB', 'Dumping database '.$dbname.' from "'.$conn_from.'"');
-				
-				$dumpSettings = array(	
-					'compress' => 'NONE',
-					'no-data' => false,
-					'add-drop-table' => false,
-					'single-transaction' => true,
-					'lock-tables' => false,
-					'add-locks' => true,
-					'extended-insert' => true
-				);
+		$c = array(
+			$this->selected_connection['parsed_string'],
+			$this->connections[$conn_dest]['parsed_string']
+		);
+		
+		$o = array(
+			$this->selected_connection['objects'],
+			$this->connections[$conn_dest]['objects']
+		);
+		
+		/* Deploy database */
+		
+		$conn_from = $this->selected_connection['name'];
+		
+		$connection = $c[0];
+		$dbname = ltrim($connection['path'],'/');
+		
+		$this->announce('DB', 'Dumping database '.$dbname.' from "'.$conn_from.'"');
+		
+		$dumpSettings = array(	
+			'compress' => 'NONE',
+			'no-data' => false,
+			'add-drop-table' => false,
+			'single-transaction' => true,
+			'lock-tables' => false,
+			'add-locks' => true,
+			'extended-insert' => true
+		);
 
-				$dump = new Mysqldump($dbname, $connection['user'], $connection['pass'], $connection['host'], $connection['scheme'], $dumpSettings);
-				$dump->start('tmp_dump.sql');
-				
-				if( file_exists('tmp_dump.sql') ) {
-					$this->status('ok');
-				} else {
-					$this->status('fail', 'Something wrong happened while dumping the local database');
-				}
-				
-				$local_sql_schema = file_get_contents('tmp_dump.sql');
-				
-				$this->announce('DB', 'Deploying database '.$dbname.' on "'.$conn_to.'"');
-				
-				$remote_connection = $c[1];
-				$remote_dbname = ltrim($remote_connection['path'],'/');
-				
-				$o[1]['mysql']->query(
-					"SET foreign_key_checks = 0;\n".
-					"SET NAMES utf8;\n".
-					"DROP DATABASE IF EXISTS ".mysql_real_escape_string($remote_dbname).";\n".
-					"CREATE DATABASE ".mysql_real_escape_string($remote_dbname)." DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;\n".
-					"USE ".mysql_real_escape_string($remote_dbname).";\n".
-					$local_sql_schema.
-					"SET foreign_key_checks = 1;\n"
-				);
-				
-				unlink('tmp_dump.sql');
-				$this->status('ok');
-				break;
+		$dump = new Mysqldump($dbname, $connection['user'], $connection['pass'], $connection['host'], $connection['scheme'], $dumpSettings);
+		$dump->start('tmp_dump.sql');
+		
+		if( file_exists('tmp_dump.sql') ) {
+			$this->status('ok');
+		} else {
+			$this->status('fail', 'Something wrong happened while dumping the local database');
 		}
+		
+		$local_sql_schema = file_get_contents('tmp_dump.sql');
+		
+		$this->announce('DB', 'Deploying database '.$dbname.' on "'.$conn_dest.'"');
+		
+		$remote_connection = $c[1];
+		$remote_dbname = ltrim($remote_connection['path'],'/');
+		
+		$o[1]['mysql']->query(
+			"SET foreign_key_checks = 0;\n".
+			"SET NAMES utf8;\n".
+			"DROP DATABASE IF EXISTS ".mysql_real_escape_string($remote_dbname).";\n".
+			"CREATE DATABASE ".mysql_real_escape_string($remote_dbname)." DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;\n".
+			"USE ".mysql_real_escape_string($remote_dbname).";\n".
+			$local_sql_schema.
+			"SET foreign_key_checks = 1;\n"
+		);
+		
+		unlink('tmp_dump.sql');
+		$this->status('ok');
 	}
 	
 	public function select($conn_name) {
 		$this->announce('SOY', "Select connection '{$conn_name}'");
 		$this->selected_connection = $this->connections[$conn_name];
+		$this->selected_connection['name'] = $conn_name;
 		$this->status('ok');
 	}
 	
@@ -326,6 +330,7 @@ function test($test_string) { $ret = bash('if [ '.$test_string.' ] ; then echo 1
 function announce($cat, $message, $padded=false) { global $soy; $soy->announce($cat, $message, $padded); }
 function status($status = null, $message = null) { global $soy; $soy->status($status, $message); }
 function upload_to($dest_conn) { global $soy; $soy->upload_to($dest_conn); }
+function dump_to($dest_conn) { global $soy; $soy->dump_to($dest_conn); }
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {

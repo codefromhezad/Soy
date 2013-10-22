@@ -53,7 +53,7 @@ class SOY {
 		if( isset($conn['user']) && isset($conn['pass']) ) {
 			$credentials = array($conn['user'], $conn['pass']);
 		} else {
-			die('Soy only supports username based connections right now');
+			die('Soy only supports username based connections right now'."\n");
 		}
 		
 		// Hack to kill a Net_SSH2 error (from Random.php)
@@ -127,10 +127,10 @@ class SOY {
 	
 	public function transfer($conn_from, $conn_to, $shared_files) {
 		if( ! isset( $this->connections[$conn_from] ) ) {
-			die($conn_from.' is not a connexion');
+			die($conn_from.' is not a connexion'."\n");
 		}
 		if( ! isset( $this->connections[$conn_to] ) ) {
-			die($conn_to.' is not a connexion');
+			die($conn_to.' is not a connexion'."\n");
 		}
 		
 		$c = array(
@@ -299,11 +299,13 @@ $soy = new SOY();
 
 /* SOY methods helpers */
 function select($conn_name) { global $soy; return $soy->select($conn_name); }
-function bash($bash_string) { global $soy; return $soy->bash($bash_string); }
+function bash($bash_string, $verbose = true) {
+							  global $soy; return $soy->bash($bash_string, $verbose); }
 function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
 function test($test_string) { $ret = bash('if [ '.$test_string.' ] ; then echo 1 ; else echo 0 ; fi', false); return intval($ret); }
+function info($info_string) { global $soy; echo $info_string."\n"; }
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {
@@ -315,7 +317,7 @@ function Run($task_name) {
 	global $soy;
 	echo "\n".'[[[ EXECUTING TASK {{ '.$task_name.' }} ]]]'."\n";
 	if( ! isset($soy->tasks[$task_name]) ) {
-		die($task_name.' is not a task');
+		die($task_name.' is not a task'."\n");
 	}
 	$soy->tasks[$task_name]();
 }

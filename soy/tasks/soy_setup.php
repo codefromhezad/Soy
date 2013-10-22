@@ -12,6 +12,12 @@ Task('soy:setup', function() {
 		info('>> Base folder already exists.');
 	}
 
+	if( ! test("-e {$remote_server['path']}/release") ) {
+		bash("mkdir {$remote_server['path']}/release");
+	} else {
+		info('>> Release folder already exists.');
+	}
+
 	if( ! test("-e {$remote_server['path']}/shared") ) {
 		bash("mkdir {$remote_server['path']}/shared");
 	} else {

@@ -4,7 +4,7 @@ Task('soy:setup', function() {
 	global $remote_server;
 	select('remote_server');
 
-	info('Creating required folders ...');
+	info('Checking presence of required folders ...');
 
 	if( ! test("-e {$remote_server['path']}") ) {
 		bash("mkdir {$remote_server['path']}");

@@ -61,20 +61,21 @@ class SOY {
 		
 		// Init SSH and SFTP and then log on the server
 		$this->announce("SSH", "Open SSH session on {$conn['host']} as '$cname'");
-		$this->connections[$cname]['objects']['ssh'] = new Net_SSH2($conn['host']);
-		if( $this->connections[$cname]['objects']['ssh'] ) {
-			$this->status('OK');
-		} else {
+		try {
+			$this->connections[$cname]['objects']['ssh'] = new Net_SSH2($conn['host']);
+		} catch(Exception $e) {
 			$this->status('FAIL', 'Unable to open SSH connection to '.$conn['host']);
 		}
+		$this->status('OK');
 		
+
 		$this->announce("SFTP", "Open SFTP session on {$conn['host']} as '$cname'");
-		$this->connections[$cname]['objects']['sftp'] = new Net_SFTP($conn['host']);
-		if( $this->connections[$cname]['objects']['sftp'] ) {
-			$this->status('OK');
-		} else {
+		try {
+			$this->connections[$cname]['objects']['sftp'] = new Net_SFTP($conn['host']);
+		} catch(Exception $e) {
 			$this->status('FAIL', 'Unable to open SFTP connection to '.$conn['host']);
 		}
+		$this->status('OK');
 		
 		/* Password based login */
 		$c = $credentials;
@@ -243,8 +244,9 @@ class SOY {
 		$this->status('ok');
 	}
 	
-	public function bash($bash_string) {
-		$this->announce('BASH', $bash_string);
+	public function bash($bash_string, $verbose=true) {
+		if( $verbose )
+			$this->announce('BASH', $bash_string);
 		
 		if( ! $this->selected_connection ) {
 			$this->status('fail', "No connection selected for this bash command");
@@ -253,11 +255,14 @@ class SOY {
 		$ret = $this->selected_connection['objects']['ssh']->exec($bash_string);
 		
 		if( $this->selected_connection['objects']['ssh']->getExitStatus() == 0 ) {
-			echo "\n";
+			if( $verbose )
+				echo "\n";
 			
 			if( $ret ) {
-				$this->announce('BASH', "<< ".$ret, true);
-				$this->status('ok');
+				if( $verbose ) {
+					$this->announce('BASH', "<< ".$ret, true);
+					$this->status('ok');
+				}
 				return $ret;
 			}
 				
@@ -298,7 +303,7 @@ function bash($bash_string) { global $soy; return $soy->bash($bash_string); }
 function sql_query($query)  { global $soy; return $soy->sql_query($query); }
 function transfer($conn_from, $conn_to)  {
 							  global $soy; return $soy->transfer($conn_from, $conn_to); }
-function test($test_string) { return bash('if [ '.$test_string.' ] ; then echo 1 ; else echo 0 ; fi'); }
+function test($test_string) { $ret = bash('if [ '.$test_string.' ] ; then echo 1 ; else echo 0 ; fi', false); return intval($ret); }
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {

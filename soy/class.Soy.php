@@ -341,6 +341,20 @@ function announce($cat, $message, $padded=false) { global $soy; $soy->announce($
 function status($status = null, $message = null) { global $soy; $soy->status($status, $message); }
 function upload_to($dest_conn) { global $soy; $soy->upload_to($dest_conn); }
 function dump_to($dest_conn) { global $soy; $soy->dump_to($dest_conn); }
+function share($original_file_path) {
+	global $shared_path, $release_path;
+	
+	if( ! test("-e $shared_path/$original_file_path") ) {
+		bash("mkdir -p \"".dirname("$shared_path/$original_file_path")."\"");
+		bash("cp -r \"$release_path/$original_file_path\" \"$shared_path/$original_file_path\"");
+	}
+	
+	if( test("-e $release_path/$original_file_path") ) {
+		bash("rm -r \"$release_path/$original_file_path\"");
+	}
+	
+	bash("ln -s \"$shared_path/$original_file_path\" \"$release_path/$original_file_path\"");
+}
 
 /* Main soy.php functions */
 function Task($task_name, $task_callback) {
@@ -369,6 +383,10 @@ function Lands($connections_array) {
 
 function Connection($conn_name) {
 	global $soy;
+	
+	if( isset( $soy->connections[$conn_name] ) && ! empty( $soy->connections[$conn_name] ) ) {
+		return;
+	}
 	
 	$conn_string = $soy->loadable_connections[$conn_name];
 	

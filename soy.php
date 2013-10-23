@@ -1,23 +1,18 @@
 <?php
 
+Run('soy:setup');
+
 Task('deploy', function() {
-	Run('deploy_files');
-	Run('empty_remote_cache');
-	Run('deploy_schema');
-});
+	global $release_path, $shared_path;
+	
+	select('local_files');
+	upload_to('remote_server');
 
-Task('empty_remote_cache', function() {
-	global $remote_server;
 	select('remote_server');
-	bash("rm -r {$remote_server['path']}/cache/*");
-});
-
-Task('deploy_files', function() {
-	transfer('local_files', 'remote_server');
-});
-
-Task('deploy_schema', function() {
-	transfer('local_database', 'remote_database');
-	select('remote_database');
-	sql_query("UPDATE page SET page_name = REPLACE(page_name, 'localhost', 'production')");
+	bash("mv $release_path/test.txt $release_path/test_modified.txt");
+	
+	share("test_modified.txt");
+	
+	select('local_database');
+	dump_to('remote_database');
 });

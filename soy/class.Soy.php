@@ -277,6 +277,7 @@ class SOY {
 		
 		$this->set('release_path', $this->selected_connection['parsed_string']['path'].'/release');
 		$this->set('shared_path', $this->selected_connection['parsed_string']['path'].'/shared');
+		$this->set('base_path', $this->selected_connection['parsed_string']['path']);
 	}
 	
 	public function bash($bash_string, $verbose=true) {

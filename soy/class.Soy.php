@@ -141,8 +141,8 @@ class SOY {
 		if( ! isset( $this->selected_connection ) ) {
 			die('No connection selected'."\n");
 		}
-		if( ! isset( $this->connections[$conn_dest] ) ) {
-			die($conn_dest.' is not a connection'."\n");
+		if( isset( $this->loadable_connections[$conn_dest] ) ) {
+			Connection($conn_dest);
 		}
 		
 		$c = array(
@@ -168,7 +168,6 @@ class SOY {
 		$this->status("");
 		
 		foreach(new RecursiveIteratorIterator($local_iterator) as $filename => $fileinfo) {
-			
 			$filename = $this->normalize_path($filename);
 			
 			foreach( $this->file_exclusions as $exclusion ) {
@@ -184,7 +183,7 @@ class SOY {
 			if( in_array(basename($filename), array(".", "..")) ) {
 				continue;
 			}
-			
+
 			$remote_current_dir = dirname($remote_path);
 			
 			$this->announce(" ", $relative_filename, true);
@@ -205,8 +204,8 @@ class SOY {
 		if( ! isset( $this->selected_connection ) ) {
 			die('No connection selected'."\n");
 		}
-		if( ! isset( $this->connections[$conn_dest] ) ) {
-			die($conn_dest.' is not a connection'."\n");
+		if( isset( $this->loadable_connections[$conn_dest] ) ) {
+			Connection($conn_dest);
 		}
 		
 		$c = array(

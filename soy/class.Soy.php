@@ -181,6 +181,10 @@ class SOY {
 			$relative_filename = str_replace($local_dir, '', $filename);
 			$remote_path = $remote_dir.$relative_filename;
 			
+			if( in_array(basename($filename), array(".", "..")) ) {
+				continue;
+			}
+			
 			$remote_current_dir = dirname($remote_path);
 			
 			$this->announce(" ", $relative_filename, true);
